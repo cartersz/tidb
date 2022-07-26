@@ -1155,7 +1155,8 @@ type SessionVars struct {
 	// BatchPendingTiFlashCount shows the threshold of pending TiFlash tables when batch adding.
 	BatchPendingTiFlashCount int
 	// RcReadCheckTS indicates if ts check optimization is enabled for current session.
-	RcReadCheckTS bool
+	RcReadCheckTS         bool
+	EnableCollectLockInfo bool
 	// RemoveOrderbyInSubquery indicates whether to remove ORDER BY in subquery.
 	RemoveOrderbyInSubquery bool
 	// NonTransactionalIgnoreError indicates whether to ignore error in non-transactional statements.
