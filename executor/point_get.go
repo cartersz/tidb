@@ -398,8 +398,19 @@ func (e *PointGetExecutor) lockKeyIfNeeded(ctx context.Context, key []byte,
 			seVars.TxnCtx.SetPessimisticLockCache(e.idxKey, e.handleVal)
 		}
 		if lockIfExists {
-			if val, ok := lockCtx.Values[string(key)]; ok && val.Exists {
-				return val.Value, nil
+			if val, ok := lockCtx.Values[string(key)]; ok {
+				if val.Exists {
+					return val.Value, nil
+				} else if val.AlreadyLocked {
+					val, err := e.get(ctx, key)
+					if err != nil {
+						if !kv.ErrNotExist.Equal(err) {
+							return nil, err
+						}
+						return nil, nil
+					}
+					return val, nil
+				}
 			}
 		}
 	}
