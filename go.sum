@@ -245,10 +245,10 @@ github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 h1:YEetp8
 github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21/go.mod h1:+020luEh2TKB4/GOp8oxxtq0Daoen/Cii55CzbTV6DU=
 github.com/eapache/queue v1.1.0 h1:YOEu7KNc61ntiQlcEeUIoDTJ2o8mQznoNvUhiigpIqc=
 github.com/eapache/queue v1.1.0/go.mod h1:6eCeP0CKFpHLu8blIFXhExK/dRa7WDZfr6jVFPTqq+I=
-github.com/ekexium/client-go/v2 v2.0.0-alpha.0.20220728050717-d3c0c50aa463 h1:O4RyN+KIsFRDQz3evw0JBqoIIHxPpX04Gh0jdqfFG0A=
-github.com/ekexium/client-go/v2 v2.0.0-alpha.0.20220728050717-d3c0c50aa463/go.mod h1:hiOGMaBgFjsYqRBGPOo3pCJJNcmGwx/PLNHCruOm6G4=
-github.com/ekexium/kvproto v0.0.0-20220725090049-ba7549963255 h1:C1H3SBEtQEa3ObZPqe6C0njrvgtQGG+hoYjBDvUFk2A=
-github.com/ekexium/kvproto v0.0.0-20220725090049-ba7549963255/go.mod h1:OYtxs0786qojVTmkVeufx93xe+jUgm56GUYRIKnmaGI=
+github.com/ekexium/client-go/v2 v2.0.0-alpha.0.20220728051229-3d63c4dd5be1 h1:mql5wMC+ET5+S41KBGDX0tYTfKwEF5KA8UAjBZg0CTA=
+github.com/ekexium/client-go/v2 v2.0.0-alpha.0.20220728051229-3d63c4dd5be1/go.mod h1:hiOGMaBgFjsYqRBGPOo3pCJJNcmGwx/PLNHCruOm6G4=
+github.com/ekexium/kvproto v0.0.0-20220728045631-4c334bb9cb83 h1:myVJA6aGu1qMw1y8QGcHfui1xHzureB1X6dUITKp+og=
+github.com/ekexium/kvproto v0.0.0-20220728045631-4c334bb9cb83/go.mod h1:OYtxs0786qojVTmkVeufx93xe+jUgm56GUYRIKnmaGI=
 github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385/go.mod h1:0vRUJqYpeSZifjYj7uP3BG/gKcuzL9xWVV/Y+cK33KM=
 github.com/elastic/gosigar v0.9.0/go.mod h1:cdorVVzy1fhmEqmtgqkoE3bYtCfSCkVyjTyCIo22xvs=
 github.com/elazarl/go-bindata-assetfs v1.0.0/go.mod h1:v+YaWX3bdea5J/mo8dSETolEo7R71Vk1u8bnjau5yw4=
