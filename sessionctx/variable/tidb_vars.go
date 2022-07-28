@@ -787,6 +787,8 @@ const (
 	TiDBGenerateBinaryPlan = "tidb_generate_binary_plan"
 	// TiDBEnableGCAwareMemoryTrack indicates whether to turn-on GC-aware memory track.
 	TiDBEnableGCAwareMemoryTrack = "tidb_enable_gc_aware_memory_track"
+	TiDBEnableCollectionLockInfo = "tidb_enable_collect_lock_info"
+	TiDBInsertSkipUpdateTS       = "tidb_insert_skip_update_ts"
 )
 
 // TiDB intentional limits
@@ -1000,6 +1002,8 @@ const (
 	DefEnableTiDBGCAwareMemoryTrack                = true
 	DefTiDBDefaultStrMatchSelectivity              = 0.8
 	DefTiDBSkipInsertLock                          = false
+	DefTiDBEnableCollectionLockInfo                = true
+	DefTiDBInsertSkipUpdateTs                      = false
 )
 
 // Process global variables.

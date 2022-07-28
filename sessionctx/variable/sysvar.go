@@ -1658,6 +1658,14 @@ var defaultSysVars = []*SysVar{
 		s.RcReadCheckTS = TiDBOptOn(val)
 		return nil
 	}},
+	{Scope: ScopeGlobal | ScopeSession, Name: TiDBInsertSkipUpdateTS, Type: TypeBool, Value: BoolToOnOff(DefTiDBInsertSkipUpdateTs), SetSession: func(s *SessionVars, val string) error {
+		s.InsertSkipUpdateTs = TiDBOptOn(val)
+		return nil
+	}},
+	{Scope: ScopeGlobal | ScopeSession, Name: TiDBEnableCollectionLockInfo, Type: TypeBool, Value: BoolToOnOff(DefTiDBEnableCollectionLockInfo), SetSession: func(s *SessionVars, val string) error {
+		s.EnableCollectLockInfo = TiDBOptOn(val)
+		return nil
+	}},
 	{Scope: ScopeGlobal | ScopeSession, Name: TiDBRemoveOrderbyInSubquery, Value: BoolToOnOff(DefTiDBRemoveOrderbyInSubquery), Type: TypeBool, SetSession: func(s *SessionVars, val string) error {
 		s.RemoveOrderbyInSubquery = TiDBOptOn(val)
 		return nil
