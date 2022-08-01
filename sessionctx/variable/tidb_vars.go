@@ -717,6 +717,7 @@ const (
 	// When set to (0, 1], Selectivity() will use the value of this variable as the default selectivity of those
 	// functions instead of the selectionFactor (0.8).
 	TiDBDefaultStrMatchSelectivity = "tidb_default_string_match_selectivity"
+	TiDBPointLockReadUseLastTso    = "tidb_rc_point_lock_read_use_last_tso"
 )
 
 // TiDB vars that have only global scope
@@ -996,6 +997,7 @@ const (
 	DefTiDBGenerateBinaryPlan                      = true
 	DefEnableTiDBGCAwareMemoryTrack                = true
 	DefTiDBDefaultStrMatchSelectivity              = 0.8
+	DefTiDBPointLockReadUseLastTso                 = true
 )
 
 // Process global variables.
@@ -1045,6 +1047,7 @@ var (
 	EnableConcurrentDDL               = atomic.NewBool(DefTiDBEnableConcurrentDDL)
 	DDLForce2Queue                    = atomic.NewBool(false)
 	EnableNoopVariables               = atomic.NewBool(DefTiDBEnableNoopVariables)
+	PointLockReadUseLastTso           = atomic.NewBool(false)
 )
 
 var (
