@@ -2283,6 +2283,10 @@ func (s *session) preparedStmtExec(ctx context.Context, execStmt *ast.ExecuteStm
 	if err == nil {
 		err = sessiontxn.OptimizeWithPlanAndThenWarmUp(s, st.Plan)
 	}
+	if !s.GetSessionVars().InRestrictedSQL {
+		query := st.OriginText()
+		logutil.Logger(ctx).Info("SQL", zap.String("query", query))
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -2303,6 +2307,9 @@ func (s *session) preparedStmtExec(ctx context.Context, execStmt *ast.ExecuteStm
 
 // ExecutePreparedStmt executes a prepared statement.
 func (s *session) ExecutePreparedStmt(ctx context.Context, stmtID uint32, args []types.Datum) (sqlexec.RecordSet, error) {
+	if !s.GetSessionVars().InRestrictedSQL {
+		logutil.Logger(ctx).Info("ExecutePreparedStmt", zap.Uint32("stmtID", stmtID))
+	}
 	var err error
 	if err = s.PrepareTxnCtx(ctx); err != nil {
 		return nil, err
