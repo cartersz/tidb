@@ -92,11 +92,6 @@ func isOptimisticTxnRetryable(sessVars *variable.SessionVars, tp sessiontxn.Ente
 // AdviseOptimizeWithPlan providers optimization according to the plan
 // It will use MaxTS as the startTS in autocommit txn for some plans.
 func (p *OptimisticTxnContextProvider) AdviseOptimizeWithPlan(plan interface{}) (err error) {
-	if !p.sctx.GetSessionVars().InRestrictedSQL {
-		logutil.BgLogger().Info("(p *OptimisticTxnContextProvider) AdviseOptimizeWithPlan")
-	}
-	// logutil.BgLogger().Info("(p *OptimisticTxnContextProvider) AdviseOptimizeWithPlan")
-
 	if p.isTidbSnapshotEnabled() || p.isBeginStmtWithStaleRead() {
 		return nil
 	}
