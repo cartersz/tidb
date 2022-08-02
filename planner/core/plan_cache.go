@@ -114,9 +114,9 @@ func GetPlanFromSessionPlanCache(ctx context.Context, sctx sessionctx.Context, i
 	}
 	if prepared.UseCache && !ignorePlanCache { // for general plans
 		if cacheValue, exists := sctx.PreparedPlanCache().Get(cacheKey); exists {
-			if err := checkPreparedPriv(ctx, sctx, preparedStmt, is); err != nil {
-				return nil, nil, err
-			}
+			// if err := checkPreparedPriv(ctx, sctx, preparedStmt, is); err != nil {
+			// 	return nil, nil, err
+			// }
 			cachedVals := cacheValue.([]*PlanCacheValue)
 			for _, cachedVal := range cachedVals {
 				if cachedVal.BindSQL != bindSQL {
