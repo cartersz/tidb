@@ -17,6 +17,7 @@ package isolation
 import (
 	"context"
 	"time"
+	"unsafe"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/pingcap/errors"
@@ -31,7 +32,9 @@ import (
 	"github.com/pingcap/tidb/sessiontxn/internal"
 	"github.com/pingcap/tidb/sessiontxn/staleread"
 	"github.com/pingcap/tidb/table/temptable"
+	"github.com/pingcap/tidb/util/logutil"
 	"github.com/tikv/client-go/v2/oracle"
+	"go.uber.org/zap"
 )
 
 // baseTxnContextProvider is a base class for the transaction context providers that implement `TxnContextProvider` in different isolation.
@@ -332,6 +335,9 @@ func (p *baseTxnContextProvider) isBeginStmtWithStaleRead() bool {
 
 // AdviseWarmup provides warmup for inner state
 func (p *baseTxnContextProvider) AdviseWarmup() error {
+	if !p.sctx.GetSessionVars().InRestrictedSQL {
+		logutil.Logger(p.ctx).Info("(p *baseTxnContextProvider) AdviseWarmup()")
+	}
 	if p.isBeginStmtWithStaleRead() {
 		// When executing `START TRANSACTION READ ONLY AS OF ...` no need to warmUp
 		return nil
@@ -408,8 +414,12 @@ func newOracleFuture(ctx context.Context, sctx sessionctx.Context, scope string)
 		defer span1.Finish()
 		ctx = opentracing.ContextWithSpan(ctx, span1)
 	}
+	if !sctx.GetSessionVars().InRestrictedSQL {
+		logutil.Logger(ctx).Info("TsoRequestCountInc ", zap.Uint64("sctx", uint64(uintptr(unsafe.Pointer(&sctx)))))
+	}
 
 	failpoint.Inject("requestTsoFromPD", func() {
+		// logutil.Logger(ctx).Info("==========TsoRequestCountInc========")
 		sessiontxn.TsoRequestCountInc(sctx)
 	})
 

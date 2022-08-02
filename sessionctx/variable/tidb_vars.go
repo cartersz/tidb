@@ -718,6 +718,7 @@ const (
 	// functions instead of the selectionFactor (0.8).
 	TiDBDefaultStrMatchSelectivity = "tidb_default_string_match_selectivity"
 	TiDBPointLockReadUseLastTso    = "tidb_rc_point_lock_read_use_last_tso"
+	TiDBInsertUseLastTso           = "tidb_rc_insert_use_last_tso"
 )
 
 // TiDB vars that have only global scope
@@ -998,6 +999,7 @@ const (
 	DefEnableTiDBGCAwareMemoryTrack                = true
 	DefTiDBDefaultStrMatchSelectivity              = 0.8
 	DefTiDBPointLockReadUseLastTso                 = true
+	DefTiDBInsertUseLastTso                        = true
 )
 
 // Process global variables.
@@ -1048,6 +1050,7 @@ var (
 	DDLForce2Queue                    = atomic.NewBool(false)
 	EnableNoopVariables               = atomic.NewBool(DefTiDBEnableNoopVariables)
 	PointLockReadUseLastTso           = atomic.NewBool(false)
+	InsertUseLastTso                  = atomic.NewBool(true)
 )
 
 var (
