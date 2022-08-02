@@ -1049,7 +1049,7 @@ var (
 	EnableConcurrentDDL               = atomic.NewBool(DefTiDBEnableConcurrentDDL)
 	DDLForce2Queue                    = atomic.NewBool(false)
 	EnableNoopVariables               = atomic.NewBool(DefTiDBEnableNoopVariables)
-	PointLockReadUseLastTso           = atomic.NewBool(false)
+	PointLockReadUseLastTso           = atomic.NewBool(true)
 	InsertUseLastTso                  = atomic.NewBool(true)
 )
 
