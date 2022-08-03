@@ -1361,9 +1361,8 @@ func HashFieldTypes(fieldTypes []*types.FieldType, hs ...interface{}) uint64 {
 
 type SmallChunkCacheEntry struct {
 	RetFieldTypes []*types.FieldType
-	MaxChunkSize  int
-	InUse         bool
-	Chunk         *chunk.Chunk
+	InUse         []bool
+	Chunks        []*chunk.Chunk
 }
 
 const (

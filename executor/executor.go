@@ -231,35 +231,45 @@ func (e *baseExecutor) Schema() *expression.Schema {
 func newFirstChunk(e Executor) *chunk.Chunk {
 	base := e.base()
 	if base.initCap == 1 && base.maxChunkSize == 1 || e.LenHint() == 1 {
-		hv := variable.HashFieldTypes(base.retFieldTypes, base.maxChunkSize)
+		hv := variable.HashFieldTypes(base.retFieldTypes)
 		e, ok := base.ctx.GetSessionVars().SmallChunkCache[hv]
-		if ok && e.InUse {
-			return chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize)
-		}
-		if ok && len(base.retFieldTypes) == len(e.RetFieldTypes) && base.maxChunkSize == base.maxChunkSize {
+		if ok && len(base.retFieldTypes) == len(e.RetFieldTypes) {
 			for i := range base.retFieldTypes {
 				if base.retFieldTypes[i].GetType() != e.RetFieldTypes[i].GetType() {
+					//logutil.BgLogger().Info("field mismatch")
 					ok = false
 					break
 				}
 			}
 			if ok {
-				e.Chunk.Reset()
-				e.InUse = true
-				return e.Chunk
+				for i, c := range e.Chunks {
+					if c != nil && !e.InUse[i] {
+						e.InUse[i] = true
+						c.Reset()
+						return c
+					}
+					if e.Chunks[i] == nil {
+						e.Chunks[i] = chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize)
+						e.InUse[i] = true
+						//logutil.BgLogger().Info("append chunk")
+						return e.Chunks[i]
+					}
+				}
+				//logutil.BgLogger().Info("all chunk in use")
+				return chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize)
 			}
 		}
+		//logutil.BgLogger().Info("hash mismatch")
 		entry := variable.SmallChunkCacheEntry{
 			RetFieldTypes: base.retFieldTypes,
-			MaxChunkSize:  base.maxChunkSize,
-			InUse:         true,
-			Chunk:         chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize),
+			InUse:         []bool{true, false, false},
+			Chunks:        []*chunk.Chunk{chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize), nil, nil},
 		}
 		if len(base.ctx.GetSessionVars().SmallChunkCache) > 100 {
 			base.ctx.GetSessionVars().SmallChunkCache = make(map[uint64]variable.SmallChunkCacheEntry)
 		}
 		base.ctx.GetSessionVars().SmallChunkCache[hv] = entry
-		return entry.Chunk
+		return entry.Chunks[0]
 	}
 	return chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize)
 }
