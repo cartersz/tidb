@@ -116,10 +116,6 @@ func (e *ProjectionExec) open(ctx context.Context) error {
 	return nil
 }
 
-func (e *ProjectionExec) LenHint() int {
-	return e.children[0].LenHint()
-}
-
 // Next implements the Executor Next interface.
 //
 // Here we explain the execution flow of the parallel projection implementation.
