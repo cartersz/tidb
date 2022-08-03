@@ -719,7 +719,9 @@ const (
 	TiDBDefaultStrMatchSelectivity = "tidb_default_string_match_selectivity"
 
 	// TiDBSkipInsertLock is used in pessimistic transaction to skip the locking of simple insert statements.
-	TiDBSkipInsertLock = "tidb_skip_insert_lock"
+	TiDBSkipInsertLock          = "tidb_skip_insert_lock"
+	TiDBPointLockReadUseLastTso = "tidb_rc_point_lock_read_use_last_tso"
+	TiDBInsertUseLastTso        = "tidb_rc_insert_use_last_tso"
 )
 
 // TiDB vars that have only global scope
@@ -993,7 +995,7 @@ const (
 	DefTiDBEnableConcurrentDDL                     = concurrencyddl.TiDBEnableConcurrentDDL
 	DefTiDBSimplifiedMetrics                       = false
 	DefTiDBEnablePaging                            = true
-	DefTiFlashFineGrainedShuffleStreamCount        = -1
+	DefTiFlashFineGrainedShuffleStreamCount        = 0
 	DefStreamCountWhenMaxThreadsNotSet             = 8
 	DefTiFlashFineGrainedShuffleBatchSize          = 8192
 	DefAdaptiveClosestReadThreshold                = 4096
@@ -1004,6 +1006,8 @@ const (
 	DefTiDBSkipInsertLock                          = false
 	DefTiDBEnableCollectionLockInfo                = true
 	DefTiDBInsertSkipUpdateTs                      = false
+	DefTiDBPointLockReadUseLastTso                 = true
+	DefTiDBInsertUseLastTso                        = true
 )
 
 // Process global variables.
@@ -1051,7 +1055,10 @@ var (
 	PreparedPlanCacheSize             = atomic.NewUint64(DefTiDBPrepPlanCacheSize)
 	PreparedPlanCacheMemoryGuardRatio = atomic.NewFloat64(DefTiDBPrepPlanCacheMemoryGuardRatio)
 	EnableConcurrentDDL               = atomic.NewBool(DefTiDBEnableConcurrentDDL)
+	DDLForce2Queue                    = atomic.NewBool(false)
 	EnableNoopVariables               = atomic.NewBool(DefTiDBEnableNoopVariables)
+	PointLockReadUseLastTso           = atomic.NewBool(true)
+	InsertUseLastTso                  = atomic.NewBool(true)
 )
 
 var (

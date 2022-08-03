@@ -1919,7 +1919,6 @@ func (s *session) ExecuteStmt(ctx context.Context, stmtNode ast.StmtNode) (sqlex
 		defer span1.Finish()
 		ctx = opentracing.ContextWithSpan(ctx, span1)
 	}
-
 	if err := s.PrepareTxnCtx(ctx); err != nil {
 		return nil, err
 	}
@@ -2982,7 +2981,6 @@ func (s *session) PrepareTxnCtx(ctx context.Context) error {
 	if s.txn.validOrPending() {
 		return nil
 	}
-
 	txnMode := ast.Optimistic
 	if !s.sessionVars.IsAutocommit() || s.sessionVars.RetryInfo.Retrying ||
 		config.GetGlobalConfig().PessimisticTxn.PessimisticAutoCommit.Load() {

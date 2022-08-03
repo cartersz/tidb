@@ -408,7 +408,6 @@ func newOracleFuture(ctx context.Context, sctx sessionctx.Context, scope string)
 		defer span1.Finish()
 		ctx = opentracing.ContextWithSpan(ctx, span1)
 	}
-
 	failpoint.Inject("requestTsoFromPD", func() {
 		sessiontxn.TsoRequestCountInc(sctx)
 	})

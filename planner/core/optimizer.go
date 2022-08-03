@@ -385,15 +385,15 @@ func postOptimize(sctx sessionctx.Context, plan PhysicalPlan) PhysicalPlan {
 
 // Only for MPP(Window<-[Sort]<-ExchangeReceiver<-ExchangeSender).
 // TiFlashFineGrainedShuffleStreamCount:
-// == 0: fine grained shuffle is disabled.
+// < 0: fine grained shuffle is disabled.
 // > 0: use TiFlashFineGrainedShuffleStreamCount as stream count.
-// < 0: use TiFlashMaxThreads as stream count when it's greater than 0. Otherwise use DefStreamCountWhenMaxThreadsNotSet.
+// == 0: use TiFlashMaxThreads as stream count when it's greater than 0. Otherwise use DefStreamCountWhenMaxThreadsNotSet.
 func handleFineGrainedShuffle(sctx sessionctx.Context, plan PhysicalPlan) {
 	streamCount := sctx.GetSessionVars().TiFlashFineGrainedShuffleStreamCount
-	if streamCount == 0 {
+	if streamCount < 0 {
 		return
 	}
-	if streamCount < 0 {
+	if streamCount == 0 {
 		if sctx.GetSessionVars().TiFlashMaxThreads > 0 {
 			streamCount = sctx.GetSessionVars().TiFlashMaxThreads
 		} else {
@@ -733,6 +733,39 @@ func existsCartesianProduct(p LogicalPlan) bool {
 		}
 	}
 	return false
+}
+
+func PlanSkipGetTsoFromPD(plan Plan) bool {
+	useLastOracleTS := false
+	switch v := plan.(type) {
+	case PhysicalPlan:
+		if len(v.Children()) == 0 {
+			return true
+		}
+		for _, p := range v.Children() {
+			if !PlanSkipGetTsoFromPD(p) {
+				return false
+			}
+		}
+		return true
+	case *PointGetPlan:
+		if v.Lock && variable.PointLockReadUseLastTso.Load() {
+			useLastOracleTS = true
+		}
+	case *Insert:
+		if v.SelectPlan == nil && variable.InsertUseLastTso.Load() {
+			useLastOracleTS = true
+		}
+	case *Update:
+		if _, Ok := v.SelectPlan.(*PointGetPlan); Ok && variable.PointLockReadUseLastTso.Load() {
+			useLastOracleTS = true
+		}
+	case *Delete:
+		if _, ok := v.SelectPlan.(*PointGetPlan); ok && variable.PointLockReadUseLastTso.Load() {
+			useLastOracleTS = true
+		}
+	}
+	return useLastOracleTS
 }
 
 // DefaultDisabledLogicalRulesList indicates the logical rules which should be banned.
