@@ -204,6 +204,10 @@ func (e *baseExecutor) Open(ctx context.Context) error {
 	return nil
 }
 
+func (e *baseExecutor) LenHint() int {
+	return -1
+}
+
 // Close closes all executors and release all resources.
 func (e *baseExecutor) Close() error {
 	var firstErr error
@@ -226,6 +230,31 @@ func (e *baseExecutor) Schema() *expression.Schema {
 // newFirstChunk creates a new chunk to buffer current executor's result.
 func newFirstChunk(e Executor) *chunk.Chunk {
 	base := e.base()
+	if base.initCap == 1 && base.maxChunkSize == 1 || e.LenHint() == 1 {
+		hv := variable.HashFieldTypes(base.retFieldTypes)
+		e, ok := base.ctx.GetSessionVars().SmallChunkCache[hv]
+		if ok && len(base.retFieldTypes) == len(e.RetFieldTypes) {
+			for i := range base.retFieldTypes {
+				if base.retFieldTypes[i].GetType() != e.RetFieldTypes[i].GetType() {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				e.Chunk.Reset()
+				return e.Chunk
+			}
+		}
+		entry := variable.SmallChunkCacheEntry{
+			RetFieldTypes: base.retFieldTypes,
+			Chunk:         chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize),
+		}
+		if len(base.ctx.GetSessionVars().SmallChunkCache) > 100 {
+			base.ctx.GetSessionVars().SmallChunkCache = make(map[uint64]variable.SmallChunkCacheEntry)
+		}
+		base.ctx.GetSessionVars().SmallChunkCache[hv] = entry
+		return entry.Chunk
+	}
 	return chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize)
 }
 
@@ -290,6 +319,7 @@ type Executor interface {
 	base() *baseExecutor
 	Open(context.Context) error
 	Next(ctx context.Context, req *chunk.Chunk) error
+	LenHint() int
 	Close() error
 	Schema() *expression.Schema
 }

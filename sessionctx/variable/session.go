@@ -20,15 +20,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
-	"math"
-	"math/rand"
-	"net"
-	"strconv"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
-
 	"github.com/pingcap/errors"
 	"github.com/pingcap/tidb/config"
 	"github.com/pingcap/tidb/kv"
@@ -58,6 +49,15 @@ import (
 	atomic2 "go.uber.org/atomic"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
+	"hash/fnv"
+	"math"
+	"math/rand"
+	"net"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 // PreparedStmtCount is exported for test.
@@ -1124,6 +1124,10 @@ type SessionVars struct {
 		data [2]stmtctx.StatementContext
 	}
 
+	ResultFieldsCache map[ResultFieldCacheKey][]*ast.ResultField
+
+	SmallChunkCache map[uint64]SmallChunkCacheEntry
+
 	// Rng stores the rand_seed1 and rand_seed2 for Rand() function
 	Rng *mathutil.MysqlRng
 
@@ -1337,6 +1341,25 @@ type ConnectionInfo struct {
 	DB                string
 }
 
+type ResultFieldCacheKey struct {
+	Schema      interface{}
+	OutputNames uintptr
+	CurrentDB   string
+}
+
+func HashFieldTypes(fieldTypes []*types.FieldType) uint64 {
+	h := fnv.New64()
+	for _, t := range fieldTypes {
+		h.Write([]byte{t.GetType()})
+	}
+	return h.Sum64()
+}
+
+type SmallChunkCacheEntry struct {
+	RetFieldTypes []*types.FieldType
+	Chunk         *chunk.Chunk
+}
+
 const (
 	// ConnTypeSocket indicates socket without TLS.
 	ConnTypeSocket string = "Socket"
@@ -1448,6 +1471,8 @@ func NewSessionVars() *SessionVars {
 		RemoveOrderbyInSubquery:     DefTiDBRemoveOrderbyInSubquery,
 		EnableSkewDistinctAgg:       DefTiDBSkewDistinctAgg,
 		MaxAllowedPacket:            DefMaxAllowedPacket,
+		ResultFieldsCache:           make(map[ResultFieldCacheKey][]*ast.ResultField),
+		SmallChunkCache:             make(map[uint64]SmallChunkCacheEntry),
 	}
 	vars.KVVars = tikvstore.NewVariables(&vars.Killed)
 	vars.Concurrency = Concurrency{
