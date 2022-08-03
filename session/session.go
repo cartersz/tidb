@@ -2104,6 +2104,9 @@ func runStmt(ctx context.Context, se *session, s sqlexec.Statement) (rs sqlexec.
 	}
 
 	sessVars := se.sessionVars
+	for _, e := range sessVars.SmallChunkCache {
+		e.InUse = []bool{false, false, false}
+	}
 
 	// Record diagnostic information for DML statements
 	if stmt, ok := s.(*executor.ExecStmt).StmtNode.(ast.DMLNode); ok {

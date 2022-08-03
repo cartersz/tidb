@@ -1348,17 +1348,21 @@ type ResultFieldCacheKey struct {
 	CurrentDB   string
 }
 
-func HashFieldTypes(fieldTypes []*types.FieldType) uint64 {
+func HashFieldTypes(fieldTypes []*types.FieldType, hs ...interface{}) uint64 {
 	h := fnv.New64()
 	for _, t := range fieldTypes {
 		h.Write([]byte{t.GetType()})
+	}
+	for _, v := range hs {
+		binary.Write(h, binary.LittleEndian, v)
 	}
 	return h.Sum64()
 }
 
 type SmallChunkCacheEntry struct {
 	RetFieldTypes []*types.FieldType
-	Chunk         *chunk.Chunk
+	InUse         []bool
+	Chunks        []*chunk.Chunk
 }
 
 const (
