@@ -236,40 +236,24 @@ func newFirstChunk(e Executor) *chunk.Chunk {
 		if ok && len(base.retFieldTypes) == len(e.RetFieldTypes) {
 			for i := range base.retFieldTypes {
 				if base.retFieldTypes[i].GetType() != e.RetFieldTypes[i].GetType() {
-					//logutil.BgLogger().Info("field mismatch")
 					ok = false
 					break
 				}
 			}
 			if ok {
-				for i, c := range e.Chunks {
-					if c != nil && !e.InUse[i] {
-						e.InUse[i] = true
-						c.Reset()
-						return c
-					}
-					if e.Chunks[i] == nil {
-						e.Chunks[i] = chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize)
-						e.InUse[i] = true
-						//logutil.BgLogger().Info("append chunk")
-						return e.Chunks[i]
-					}
-				}
-				//logutil.BgLogger().Info("all chunk in use")
-				return chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize)
+				e.Chunk.Reset()
+				return e.Chunk
 			}
 		}
-		//logutil.BgLogger().Info("hash mismatch")
 		entry := variable.SmallChunkCacheEntry{
 			RetFieldTypes: base.retFieldTypes,
-			InUse:         []bool{true, false, false},
-			Chunks:        []*chunk.Chunk{chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize), nil, nil},
+			Chunk:         chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize),
 		}
 		if len(base.ctx.GetSessionVars().SmallChunkCache) > 100 {
 			base.ctx.GetSessionVars().SmallChunkCache = make(map[uint64]variable.SmallChunkCacheEntry)
 		}
 		base.ctx.GetSessionVars().SmallChunkCache[hv] = entry
-		return entry.Chunks[0]
+		return entry.Chunk
 	}
 	return chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize)
 }
