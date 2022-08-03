@@ -991,3 +991,15 @@ func TestPoc(t *testing.T) {
 	tk.MustExec("INSERT INTO account_dynamic VALUES(\n'10100', \n'33010101000000000000',\n'1', \n'ssssssssss',\n's',\n's',\n's',\n's',\n's',\n's',\n'sss',\n'ss','s',100,100,100,now(),\nnow(),now(),now(),1000,12.00,1111.01,1000,100000,12.01,1200,1240.02,122,1245.02,2222,124.02,123,125.01,2541,111,123.12,242.21,'ssssssssssssssss');")
 	tk.MustExec("commit")
 }
+
+func TestSkipSelectTs(t *testing.T) {
+	store, clean := testkit.CreateMockStore(t)
+	defer clean()
+	tk := testkit.NewTestKit(t, store)
+	tk.MustExec("use test")
+	tk.MustExec("create table t(id int primary key, v int)")
+	tk.MustExec("insert into t values(1, 1)")
+	tk.MustExec("set transaction_isolation='read-committed'")
+	tk.MustExec("begin pessimistic")
+	tk.MustExec("select v from t where id = 1")
+}

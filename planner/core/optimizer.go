@@ -738,6 +738,16 @@ func existsCartesianProduct(p LogicalPlan) bool {
 func PlanSkipGetTsoFromPD(plan Plan) bool {
 	useLastOracleTS := false
 	switch v := plan.(type) {
+	case PhysicalPlan:
+		if len(v.Children()) == 0 {
+			return true
+		}
+		for _, p := range v.Children() {
+			if !PlanSkipGetTsoFromPD(p) {
+				return false
+			}
+		}
+		return true
 	case *PointGetPlan:
 		if v.Lock && variable.PointLockReadUseLastTso.Load() {
 			useLastOracleTS = true
