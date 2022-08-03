@@ -18,10 +18,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"runtime/trace"
 	"strings"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/pingcap/errors"
@@ -652,19 +654,34 @@ func (a *ExecStmt) runPessimisticSelectForUpdate(ctx context.Context, e Executor
 		err = a.next(ctx, e, req)
 		if err != nil {
 			// Handle 'write conflict' error.
-			break
+			return nil, err
 		}
 		if req.NumRows() == 0 {
-			fields := colNames2ResultFields(e.Schema(), a.OutputNames, a.Ctx.GetSessionVars().CurrentDB)
-			return &chunkRowRecordSet{rows: rows, fields: fields, e: e, execStmt: a}, nil
+			break
 		}
 		iter := chunk.NewIterator4Chunk(req)
 		for r := iter.Begin(); r != iter.End(); r = iter.Next() {
 			rows = append(rows, r)
 		}
+		if e.LenHint() == 0 {
+			break
+		}
 		req = chunk.Renew(req, a.Ctx.GetSessionVars().MaxChunkSize)
 	}
-	return nil, err
+	key := variable.ResultFieldCacheKey{
+		Schema:      e.Schema(),
+		OutputNames: (*reflect.SliceHeader)(unsafe.Pointer(&a.OutputNames)).Data,
+		CurrentDB:   a.Ctx.GetSessionVars().CurrentDB,
+	}
+	if cached, ok := a.Ctx.GetSessionVars().ResultFieldsCache[key]; ok {
+		return &chunkRowRecordSet{rows: rows, fields: cached, e: e, execStmt: a}, nil
+	}
+	if len(a.Ctx.GetSessionVars().ResultFieldsCache) > 100 {
+		a.Ctx.GetSessionVars().ResultFieldsCache = make(map[variable.ResultFieldCacheKey][]*ast.ResultField)
+	}
+	fields := colNames2ResultFields(e.Schema(), a.OutputNames, a.Ctx.GetSessionVars().CurrentDB)
+	a.Ctx.GetSessionVars().ResultFieldsCache[key] = fields
+	return &chunkRowRecordSet{rows: rows, fields: fields, e: e, execStmt: a}, nil
 }
 
 func (a *ExecStmt) handleNoDelayExecutor(ctx context.Context, e Executor) (sqlexec.RecordSet, error) {

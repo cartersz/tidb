@@ -187,6 +187,13 @@ func (e *PointGetExecutor) Open(context.Context) error {
 	return nil
 }
 
+func (e *PointGetExecutor) LenHint() int {
+	if e.done {
+		return 0
+	}
+	return 1
+}
+
 // Close implements the Executor interface.
 func (e *PointGetExecutor) Close() error {
 	if e.runtimeStats != nil && e.snapshot != nil {
