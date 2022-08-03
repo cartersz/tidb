@@ -231,9 +231,12 @@ func (e *baseExecutor) Schema() *expression.Schema {
 func newFirstChunk(e Executor) *chunk.Chunk {
 	base := e.base()
 	if base.initCap == 1 && base.maxChunkSize == 1 || e.LenHint() == 1 {
-		hv := variable.HashFieldTypes(base.retFieldTypes)
+		hv := variable.HashFieldTypes(base.retFieldTypes, base.maxChunkSize)
 		e, ok := base.ctx.GetSessionVars().SmallChunkCache[hv]
-		if ok && len(base.retFieldTypes) == len(e.RetFieldTypes) {
+		if ok && e.InUse {
+			return chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize)
+		}
+		if ok && len(base.retFieldTypes) == len(e.RetFieldTypes) && base.maxChunkSize == base.maxChunkSize {
 			for i := range base.retFieldTypes {
 				if base.retFieldTypes[i].GetType() != e.RetFieldTypes[i].GetType() {
 					ok = false
@@ -242,11 +245,14 @@ func newFirstChunk(e Executor) *chunk.Chunk {
 			}
 			if ok {
 				e.Chunk.Reset()
+				e.InUse = true
 				return e.Chunk
 			}
 		}
 		entry := variable.SmallChunkCacheEntry{
 			RetFieldTypes: base.retFieldTypes,
+			MaxChunkSize:  base.maxChunkSize,
+			InUse:         true,
 			Chunk:         chunk.New(base.retFieldTypes, base.initCap, base.maxChunkSize),
 		}
 		if len(base.ctx.GetSessionVars().SmallChunkCache) > 100 {
