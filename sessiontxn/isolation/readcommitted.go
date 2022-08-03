@@ -87,8 +87,12 @@ func (p *PessimisticRCTxnContextProvider) OnStmtStart(ctx context.Context, node 
 
 	// Try to mark the `RCCheckTS` flag for the first time execution of in-transaction read requests
 	// using read-consistency isolation level.
-	if node != nil && NeedSetRCCheckTSFlag(p.sctx, node) {
-		p.sctx.GetSessionVars().StmtCtx.RCCheckTS = true
+	if node != nil {
+		if NeedSetRCCheckTSFlag(p.sctx, node) {
+			p.sctx.GetSessionVars().StmtCtx.RCCheckTS = true
+		} else if NeedDisableWarmupInOptimizer(p.sctx, node) {
+			p.sctx.GetSessionVars().StmtCtx.DisableWarmupInOptimizer = true
+		}
 	}
 
 	return p.prepareStmt(!p.isTxnPrepared)
@@ -107,6 +111,35 @@ func NeedSetRCCheckTSFlag(ctx sessionctx.Context, node ast.Node) bool {
 		}
 	}
 
+	return false
+}
+
+// NeedDisableWarmupInOptimizer checks whether optimizer calls `txnManger.AdviseWarmup()` to warmup in RC isolation.
+// txnManger.AdviseWarmup makes all write statement get tso from PD. But for insert, it may not be necessary
+// to do that and it makes higher performance. In fact, txnManger.AdviseWarmup makes read statement get tso
+// from PD too, except that it's a "RcReadCheckTS" statement, please reffer to tidb_rc_read_check_ts variable.
+// The necessary condition not performing warmup is as followers.
+// 1. RC isolation 2. not internal sqls 3. In transaction
+// 4. Insert without select || execute statement of prepare object
+// In fact, we skip getting tso from PD for insert, point update, point delete, lock point read(SELECT ... FOR UPDATE),
+// but we don't know the final plan, mark the `DisableWarmupInOptimizer` flag here only for insert statement of
+// text protocol, the func `(p *PessimisticRCTxnContextProvider) AdviseOptimizeWithPlan` explains how to optimize
+// other cases for text protocol. For binary protocol(prepare obj), we marks `DisableWarmupInOptimizer` flag here
+// simply, and the Optimizer skip calling `txnManger.AdviseWarmup()` at first, if the final plan is not satified the rules,
+// call `txnManger.AdviseWarmup()` at later.
+func NeedDisableWarmupInOptimizer(sctx sessionctx.Context, node ast.Node) bool {
+	sessionVars := sctx.GetSessionVars()
+	if sessionVars.ConnectionID > 0 &&
+		sessionVars.InTxn() {
+		if _, isExecStmt := node.(*ast.ExecuteStmt); isExecStmt &&
+			(variable.InsertUseLastTso.Load() || variable.PointLockReadUseLastTso.Load()) {
+			return true
+		}
+		if insert, ok := node.(*ast.InsertStmt); ok && insert.Select == nil &&
+			variable.InsertUseLastTso.Load() {
+			return true
+		}
+	}
 	return false
 }
 
@@ -134,7 +167,6 @@ func (p *PessimisticRCTxnContextProvider) prepareStmtTS() {
 	if p.stmtTSFuture != nil {
 		return
 	}
-
 	sessVars := p.sctx.GetSessionVars()
 	var stmtTSFuture oracle.Future
 	switch {
@@ -237,13 +269,21 @@ func (p *PessimisticRCTxnContextProvider) AdviseWarmup() error {
 }
 
 // AdviseOptimizeWithPlan in RC covers much fewer cases compared with pessimistic repeatable read.
-// We only optimize with insert operator with no selection in that we do not fetch latest ts immediately.
-// We only update ts if write conflict is incurred.
+// We do not fetch latest ts immediately for such scenes.
+// 1. PointGet of SELECT ... FOR UPDATE  2. Insert without select 3. update by PointGet 4. delete by PointGet.
+// We don't optimize for PointGet of SELECT ... FOR UPDATE defaultly, it may decrease the success rate
+// We get for_update_ts if write conflict is incurred.
+// The func `planner.Optimize` always calls the `txnManger.AdviseWarmup` to warmup in the past, it makes all sqls
+// execept `SELECT` queries with RcCheckTs get tso from pd. If intend to use the tso of last sql in current trx,
+// we should notify `planner.Optimize` to skip calling `txnManger.AdviseWarmup`.
+// 1. For PointGet of SELECT ... FOR UPDATE, DELETE, UPDATE, the `fastplan` process makes `planner.Optimize`
+//    skips calling `txnManger.AdviseWarmup`, and the sqls above skip getting tso from PD by `AdviseOptimizeWithPlan`.
+// 2. For Insert statements which have no `select` subquery, we use the flag `DisableWarmupInOptimizer` to
+//    make `planner.Optimize` skips calling `txnManger.AdviseWarmup`, see the details in func `NeedDisableWarmupInOptimizer`
 func (p *PessimisticRCTxnContextProvider) AdviseOptimizeWithPlan(val interface{}) (err error) {
 	if p.isTidbSnapshotEnabled() || p.isBeginStmtWithStaleRead() {
 		return nil
 	}
-
 	if p.stmtUseStartTS || !p.latestOracleTSValid {
 		return nil
 	}
@@ -257,7 +297,9 @@ func (p *PessimisticRCTxnContextProvider) AdviseOptimizeWithPlan(val interface{}
 		plan = execute.Plan
 	}
 
-	if v, ok := plan.(*plannercore.Insert); ok && v.SelectPlan == nil {
+	useLastOracleTS := plannercore.PlanSkipGetTsoFromPD(plan)
+
+	if useLastOracleTS {
 		p.stmtTSFuture = sessiontxn.ConstantFuture(p.latestOracleTS)
 	}
 

@@ -33,6 +33,7 @@ import (
 	"github.com/pingcap/tidb/parser/mysql"
 	"github.com/pingcap/tidb/planner/property"
 	"github.com/pingcap/tidb/sessionctx"
+	"github.com/pingcap/tidb/sessiontxn"
 	"github.com/pingcap/tidb/statistics"
 	"github.com/pingcap/tidb/table"
 	"github.com/pingcap/tidb/table/tables"
@@ -302,9 +303,25 @@ func (e *Execute) OptimizePreparedPlan(ctx context.Context, sctx sessionctx.Cont
 	if err != nil {
 		return err
 	}
+	if err := amendWarmupIfNeed(sctx, plan); err != nil {
+		return err
+	}
 	e.Plan = plan
 	e.names = names
 	e.Stmt = prepared.Stmt
+	return nil
+}
+
+// amendWarmupIfNeed if plan can't skip getting tso from pd,
+// we should warmup here because we skip warmup at first in the function `Optimize`.
+func amendWarmupIfNeed(sctx sessionctx.Context, plan Plan) error {
+	if sctx.GetSessionVars().StmtCtx.DisableWarmupInOptimizer &&
+		!PlanSkipGetTsoFromPD(plan) {
+		txnManger := sessiontxn.GetTxnManager(sctx)
+		if err := txnManger.AdviseWarmup(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
