@@ -20,6 +20,16 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
+	"hash/fnv"
+	"math"
+	"math/rand"
+	"net"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/pingcap/errors"
 	"github.com/pingcap/tidb/config"
 	"github.com/pingcap/tidb/kv"
@@ -49,15 +59,6 @@ import (
 	atomic2 "go.uber.org/atomic"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
-	"hash/fnv"
-	"math"
-	"math/rand"
-	"net"
-	"strconv"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 // PreparedStmtCount is exported for test.
