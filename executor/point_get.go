@@ -351,9 +351,19 @@ func (e *PointGetExecutor) getAndLock(ctx context.Context, key kv.Key) (val []by
 		// Only Lock the exist keys in RC isolation.
 		// test begin select * from t where k = 1 for update; upate where k = 1;
 		// select * from t where k = 1;
-		val, err = e.lockKeyIfNeeded(ctx, key, true)
-		if err != nil {
-			return nil, err
+		if e.lock {
+			val, err = e.lockKeyIfNeeded(ctx, key, true)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			val, err = e.get(ctx, key)
+			if err != nil {
+				if !kv.ErrNotExist.Equal(err) {
+					return nil, err
+				}
+				return nil, nil
+			}
 		}
 		return val, nil
 	}
