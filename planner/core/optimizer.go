@@ -780,3 +780,18 @@ func init() {
 	DefaultDisabledLogicalRulesList = new(atomic.Value)
 	DefaultDisabledLogicalRulesList.Store(set.NewStringSet())
 }
+
+func IsInsertStmtNode(node ast.Node, vars *variable.SessionVars) bool {
+	if execStmt, isExecStmt := node.(*ast.ExecuteStmt); isExecStmt {
+		prepareStmt, err := GetPreparedStmt(execStmt, vars)
+		if err != nil {
+			logutil.BgLogger().Warn("GetPreparedStmt failed", zap.Error(err))
+			return false
+		}
+		_, ok := prepareStmt.PreparedAst.Stmt.(*ast.InsertStmt)
+		return ok
+	}
+
+	_, ok := node.(*ast.InsertStmt)
+	return ok
+}
