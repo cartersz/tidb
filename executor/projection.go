@@ -183,7 +183,6 @@ func (e *ProjectionExec) Next(ctx context.Context, req *chunk.Chunk) error {
 		return e.unParallelExecute(ctx, req)
 	}
 	return e.parallelExecute(ctx, req)
-
 }
 
 func (e *ProjectionExec) isUnparallelExec() bool {
