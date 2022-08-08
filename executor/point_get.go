@@ -252,7 +252,7 @@ func (e *PointGetExecutor) Next(ctx context.Context, req *chunk.Chunk) error {
 			// Non-exist keys are also locked if the isolation level is not read consistency,
 			// lock it before read here, then it's able to read from pessimistic lock cache.
 			if lockNonExistIdxKey {
-				_, err = e.lockKeyIfNeeded(ctx, e.idxKey, false)
+				err = e.lockKeyIfNeeded(ctx, e.idxKey)
 				if err != nil {
 					return err
 				}
@@ -269,7 +269,7 @@ func (e *PointGetExecutor) Next(ctx context.Context, req *chunk.Chunk) error {
 			// TODO: pessimistic lock support lock-if-exist.
 			if lockNonExistIdxKey || len(e.handleVal) > 0 {
 				if !lockNonExistIdxKey {
-					_, err = e.lockKeyIfNeeded(ctx, e.idxKey, false)
+					err = e.lockKeyIfNeeded(ctx, e.idxKey)
 					if err != nil {
 						return err
 					}
@@ -356,16 +356,21 @@ func (e *PointGetExecutor) Next(ctx context.Context, req *chunk.Chunk) error {
 func (e *PointGetExecutor) getAndLock(ctx context.Context, key kv.Key) (val []byte, err error) {
 	if e.ctx.GetSessionVars().IsPessimisticReadConsistency() {
 		// Only Lock the exist keys in RC isolation.
-		// test begin select * from t where k = 1 for update; upate where k = 1;
-		// select * from t where k = 1;
-		val, err = e.lockKeyIfNeeded(ctx, key, true)
+		val, err = e.get(ctx, key)
+		if err != nil {
+			if !kv.ErrNotExist.Equal(err) {
+				return nil, err
+			}
+			return nil, nil
+		}
+		err = e.lockKeyIfNeeded(ctx, key)
 		if err != nil {
 			return nil, err
 		}
 		return val, nil
 	}
 	// Lock the key before get in RR isolation, then get will get the value from the cache.
-	_, err = e.lockKeyIfNeeded(ctx, key, false)
+	err = e.lockKeyIfNeeded(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -379,24 +384,20 @@ func (e *PointGetExecutor) getAndLock(ctx context.Context, key kv.Key) (val []by
 	return val, nil
 }
 
-// lockKeyIfNeeded if lockIfExists is true, only locks the key when key exists in the tikv.
-// if lockIfExists is false, always locks the key.
-func (e *PointGetExecutor) lockKeyIfNeeded(ctx context.Context, key []byte,
-	lockIfExists bool) ([]byte, error) {
+func (e *PointGetExecutor) lockKeyIfNeeded(ctx context.Context, key []byte) error {
 	if len(key) == 0 {
-		return nil, nil
+		return nil
 	}
 	if e.lock {
 		seVars := e.ctx.GetSessionVars()
 		lockCtx, err := newLockCtx(e.ctx, e.lockWaitTime, 1)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		lockCtx.LockIfExists = lockIfExists
 		lockCtx.InitReturnValues(1)
 		err = doLockKeys(ctx, e.ctx, lockCtx, key)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		lockCtx.IterateValuesNotLocked(func(k, v []byte) {
 			seVars.TxnCtx.SetPessimisticLockCache(k, v)
@@ -404,24 +405,8 @@ func (e *PointGetExecutor) lockKeyIfNeeded(ctx context.Context, key []byte,
 		if len(e.handleVal) > 0 {
 			seVars.TxnCtx.SetPessimisticLockCache(e.idxKey, e.handleVal)
 		}
-		if lockIfExists {
-			if val, ok := lockCtx.Values[string(key)]; ok {
-				if val.Exists {
-					return val.Value, nil
-				} else if val.AlreadyLocked {
-					val, err := e.get(ctx, key)
-					if err != nil {
-						if !kv.ErrNotExist.Equal(err) {
-							return nil, err
-						}
-						return nil, nil
-					}
-					return val, nil
-				}
-			}
-		}
 	}
-	return nil, nil
+	return nil
 }
 
 // get will first try to get from txn buffer, then check the pessimistic lock cache,

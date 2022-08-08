@@ -1238,13 +1238,10 @@ func newLockCtx(sctx sessionctx.Context, lockWaitTime int64, numKeys int) (*tikv
 	}
 	lockCtx := tikvstore.NewLockCtx(forUpdateTS, lockWaitTime, seVars.StmtCtx.GetLockWaitStartTime())
 	lockCtx.Killed = &seVars.Killed
-	lockCtx.LockStatsOn = seVars.EnableCollectLockInfo
-	if lockCtx.LockStatsOn {
-		lockCtx.PessimisticLockWaited = &seVars.StmtCtx.PessimisticLockWaited
-		lockCtx.LockKeysDuration = &seVars.StmtCtx.LockKeysDuration
-		lockCtx.LockKeysCount = &seVars.StmtCtx.LockKeysCount
-		lockCtx.LockExpired = &seVars.TxnCtx.LockExpire
-	}
+	lockCtx.PessimisticLockWaited = &seVars.StmtCtx.PessimisticLockWaited
+	lockCtx.LockKeysDuration = &seVars.StmtCtx.LockKeysDuration
+	lockCtx.LockKeysCount = &seVars.StmtCtx.LockKeysCount
+	lockCtx.LockExpired = &seVars.TxnCtx.LockExpire
 	lockCtx.ResourceGroupTagger = func(req *kvrpcpb.PessimisticLockRequest) []byte {
 		if req == nil {
 			return nil
@@ -1274,7 +1271,6 @@ func newLockCtx(sctx sessionctx.Context, lockWaitTime int64, numKeys int) (*tikv
 	if lockCtx.ForUpdateTS > 0 && seVars.AssertionLevel != variable.AssertionLevelOff {
 		lockCtx.InitCheckExistence(numKeys)
 	}
-
 	return lockCtx, nil
 }
 
@@ -1298,9 +1294,7 @@ func doLockKeys(ctx context.Context, se sessionctx.Context, lockCtx *tikvstore.L
 
 	keys = filterLockTableKeys(sessVars.StmtCtx, keys)
 	var lockKeyStats *tikvutil.LockKeysDetails
-	if lockCtx.LockStatsOn {
-		ctx = context.WithValue(ctx, tikvutil.LockKeysDetailCtxKey, &lockKeyStats)
-	}
+	ctx = context.WithValue(ctx, tikvutil.LockKeysDetailCtxKey, &lockKeyStats)
 	err = txn.LockKeys(tikvutil.SetSessionID(ctx, se.GetSessionVars().ConnectionID), lockCtx, keys...)
 	if lockKeyStats != nil {
 		sctx.MergeLockKeysExecDetails(lockKeyStats)
